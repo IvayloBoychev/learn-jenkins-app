@@ -129,7 +129,7 @@ pipeline {
             }
 
             environment {
-                CI_ENVIRONMENT_URL = '31979881-0b34-4a3e-ac11-1e4a489e11d3'
+                CI_ENVIRONMENT_URL = 'https://superb-rugelach-0b4b0e.netlify.app'
             }
 
             steps {
