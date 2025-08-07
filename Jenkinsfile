@@ -85,11 +85,12 @@ pipeline {
             }
             steps {
                 sh '''
-                    npm install netlify-cli@20.1.1
+                    npm install netlify-cli node-jq
                     node_modules/.bin/netlify --version
                     echo "Deploying to staging. Site ID: $NETLIFY_SITE_ID"
                     node_modules/.bin/netlify status
-                    node_modules/.bin/netlify deploy --dir=build 
+                    node_modules/.bin/netlify deploy --dir=build --json > deploy-output.json
+                    node_modules/.bin/node-jq -r '.deploy_url' deploy-output.json
                 '''
             }
         }
@@ -129,7 +130,7 @@ pipeline {
             }
 
             environment {
-                CI_ENVIRONMENT_URL = '31979881-0b34-4a3e-ac11-1e4a489e11d3'
+                CI_ENVIRONMENT_URL = 'https://peaceful-daffodil-303af5.netlify.app'
             }
 
             steps {
