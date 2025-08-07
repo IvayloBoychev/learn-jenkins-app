@@ -89,7 +89,7 @@ pipeline {
                     node_modules/.bin/netlify --version
                     echo "Deploying to staging. Site ID: $NETLIFY_SITE_ID"
                     node_modules/.bin/netlify status
-                    node_modules/.bin/netlify deploy --dir=build --site=$NETLIFY_SITE_ID
+                    node_modules/.bin/netlify deploy --dir=build 
                 '''
             }
         }
@@ -129,7 +129,7 @@ pipeline {
             }
 
             environment {
-                CI_ENVIRONMENT_URL = 'PUT YOUR NETLIFY SITE URL HERE'
+                CI_ENVIRONMENT_URL = '31979881-0b34-4a3e-ac11-1e4a489e11d3'
             }
 
             steps {
