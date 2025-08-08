@@ -38,7 +38,9 @@ pipeline {
                         }
                     }
                     steps {
-                        sh 'npm test'
+                        sh '''
+                            npm test
+                        '''
                     }
                     post {
                         always {
@@ -47,7 +49,7 @@ pipeline {
                     }
                 }
 
-                stage('Local E2E') {
+                stage('E2E') {
                     agent {
                         docker {
                             image 'mcr.microsoft.com/playwright:v1.39.0-jammy'
@@ -64,34 +66,16 @@ pipeline {
                     }
                     post {
                         always {
-                            publishHTML([reportDir: 'playwright-report', reportFiles: 'index.html',
-                                reportName: 'Local E2E', allowMissing: false, keepAll: false, useWrapperFileDirectly: true])
+                            publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: false,
+                                         reportDir: 'playwright-report', reportFiles: 'index.html',
+                                         reportName: 'Local E2E', reportTitles: '', useWrapperFileDirectly: true])
                         }
                     }
                 }
             }
         }
 
-        stage('Deploy to Staging') {
-            agent {
-                docker {
-                    image 'node:18-alpine'
-                    reuseNode true
-                }
-            }
-            steps {
-                sh '''
-                    npm install netlify-cli@20.1.1
-                    node_modules/.bin/netlify deploy --dir=build --site=$NETLIFY_SITE_ID --json > deploy-output.json
-                '''
-                script {
-                    def json = readJSON file: 'deploy-output.json'
-                    env.CI_ENVIRONMENT_URL = json.deploy_url
-                }
-            }
-        }
-
-        stage('Staging E2E') {
+        stage('Deploy staging') {
             agent {
                 docker {
                     image 'mcr.microsoft.com/playwright:v1.39.0-jammy'
@@ -100,14 +84,26 @@ pipeline {
             }
             steps {
                 sh '''
-                    echo "Testing staging URL: $CI_ENVIRONMENT_URL"
+                    npm install netlify-cli@20.1.1
+                    node_modules/.bin/netlify --version
+                    echo "Deploying to staging. Site ID: $NETLIFY_SITE_ID"
+                    node_modules/.bin/netlify status
+                    node_modules/.bin/netlify deploy --dir=build --site=$NETLIFY_SITE_ID --json > deploy-output.json
+                '''
+                script {
+                    def json = readJSON file: 'deploy-output.json'
+                    env.CI_ENVIRONMENT_URL = json.deploy_url
+                }
+                sh '''
+                    echo "Running E2E tests on: $CI_ENVIRONMENT_URL"
                     npx playwright test --reporter=html
                 '''
             }
             post {
                 always {
-                    publishHTML([reportDir: 'playwright-report', reportFiles: 'index.html',
-                        reportName: 'Staging E2E', allowMissing: false, keepAll: false, useWrapperFileDirectly: true])
+                    publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: false,
+                                 reportDir: 'playwright-report', reportFiles: 'index.html',
+                                 reportName: 'Staging E2E', reportTitles: '', useWrapperFileDirectly: true])
                 }
             }
         }
@@ -115,46 +111,41 @@ pipeline {
         stage('Approval') {
             steps {
                 timeout(time: 15, unit: 'MINUTES') {
-                    input message: 'Do you wish to deploy to production?', ok: 'Yes, deploy to prod'
+                    input message: 'Do you wish to deploy to production?', ok: 'Yes, I am sure!'
                 }
             }
         }
 
-        stage('Deploy to Prod') {
-            agent {
-                docker {
-                    image 'node:18-alpine'
-                    reuseNode true
-                }
-            }
-            steps {
-                sh '''
-                    npm install netlify-cli@20.1.1
-                    node_modules/.bin/netlify deploy --dir=build --site=$NETLIFY_SITE_ID --prod
-                '''
-            }
-        }
-
-        stage('Prod E2E') {
+        stage('Deploy prod') {
             agent {
                 docker {
                     image 'mcr.microsoft.com/playwright:v1.39.0-jammy'
                     reuseNode true
                 }
             }
+
             environment {
                 CI_ENVIRONMENT_URL = 'https://peaceful-daffodil-303af5.netlify.app'
             }
+
             steps {
                 sh '''
-                    echo "Testing prod URL: $CI_ENVIRONMENT_URL"
+                    node --version
+                    npm install netlify-cli@20.1.1
+                    node_modules/.bin/netlify --version
+                    echo "Deploying to production. Site ID: $NETLIFY_SITE_ID"
+                    node_modules/.bin/netlify status
+                    node_modules/.bin/netlify deploy --dir=build --site=$NETLIFY_SITE_ID --prod
+                    echo "Running E2E tests on: $CI_ENVIRONMENT_URL"
                     npx playwright test --reporter=html
                 '''
             }
+
             post {
                 always {
-                    publishHTML([reportDir: 'playwright-report', reportFiles: 'index.html',
-                        reportName: 'Prod E2E', allowMissing: false, keepAll: false, useWrapperFileDirectly: true])
+                    publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: false,
+                                 reportDir: 'playwright-report', reportFiles: 'index.html',
+                                 reportName: 'Prod E2E', reportTitles: '', useWrapperFileDirectly: true])
                 }
             }
         }
